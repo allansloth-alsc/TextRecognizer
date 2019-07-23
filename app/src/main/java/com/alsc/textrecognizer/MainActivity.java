@@ -71,7 +71,6 @@ public class MainActivity extends AppCompatActivity {
                 bitmap = modifyOrientation(bitmap, mCurrentPhotoPath);
                 setPic(bitmap);
                 recognizedText.setText("");
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
