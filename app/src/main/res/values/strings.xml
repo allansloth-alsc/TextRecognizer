@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Text Recognizer</string>
+    <string name="button_take">Take Picture</string>
+    <string name="button_analyze">Analyze</string>
+</resources>
