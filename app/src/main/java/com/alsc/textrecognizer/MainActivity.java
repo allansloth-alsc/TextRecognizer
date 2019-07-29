@@ -1,19 +1,24 @@
 package com.alsc.textrecognizer;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -32,6 +37,8 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+
+import static android.os.Environment.getExternalStoragePublicDirectory;
 
 public class MainActivity extends AppCompatActivity {
     static final int REQUEST_TAKE_PHOTO = 1;
@@ -60,6 +67,42 @@ public class MainActivity extends AppCompatActivity {
                 runTextRecognition();
             }
         });
+        boolean hasPermission = isStoragePermissionGranted();
+        if(hasPermission){
+            takePicture.setEnabled(true);
+            analyzePicture.setEnabled(true);
+        }
+        else{
+            takePicture.setEnabled(false);
+            analyzePicture.setEnabled(false);
+        }
+    }
+    public  boolean isStoragePermissionGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            } else {
+
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                return false;
+            }
+        }
+        else { //permission is automatically granted on sdk<23 upon installation
+            return true;
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+            takePicture.setEnabled(true);
+            analyzePicture.setEnabled(true);
+        }
+        else{
+            takePicture.setEnabled(false);
+            analyzePicture.setEnabled(false);
+        }
     }
 
     @Override
@@ -132,9 +175,31 @@ public class MainActivity extends AppCompatActivity {
 
     private File createImageFile() throws IOException {
         // Create an image file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+      //  String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+      //  String imageFileName = "TEXT_RECOGNIZER_IMAGE" + timeStamp + "_";
+       String imageFileName = "TEXT_RECOGNIZER_IMAGE";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES) ; //external file but still private. Use getExternalStoragePublicDirectory() to create a public file and the then galleryAddPic will work
+//        File storageDir = getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES+"/TextRecognizer") ; //when saved in the public picture folder, then create a folder with the app name as well (Don't have to)
+//        if(storageDir.exists() == false)
+ //           storageDir.mkdir(); //Create the TextRecognizer folder in the picture folder if it does not exist
+        boolean doDelete = true; // if it is getExternalStoragePublicDirectory then we delete the picture else set it to false, because the picture will be availeble in the gallery and the user can delete themself.
+        if (storageDir != null && doDelete) {
+
+            // so we can list all files
+            File[] filenames = storageDir.listFiles();
+
+            // loop through each file and delete
+            for (File tmpf : filenames) {
+                if(tmpf.isFile()){
+                    String extension = tmpf.getAbsolutePath().substring(tmpf.getAbsolutePath().lastIndexOf("."));
+                    if(tmpf.getName().contains("TEXT_RECOGNIZER_IMAGE") && extension.equals(".jpg")){
+                        tmpf.delete();
+                    }
+
+                }
+            }
+        }
+
         File image = File.createTempFile(
                 imageFileName,  /* prefix */
                 ".jpg",         /* suffix */
@@ -156,6 +221,7 @@ public class MainActivity extends AppCompatActivity {
                 photoFile = createImageFile();
             } catch (IOException ex) {
                 // Error occurred while creating the File
+                String error = ex.getMessage();
             }
             // Continue only if the File was successfully created
             if (photoFile != null) {
@@ -169,15 +235,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void galleryAddPic() {
+        //external file but still private. Use getExternalStoragePublicDirectory() to create a public file and the then galleryAddPic will work
         File file = new File(mCurrentPhotoPath);
-
-        try {
-            MediaStore.Images.Media.insertImage(this.getContentResolver(),
-                    file.getAbsolutePath(), file.getName(), null);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
 
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
         Uri contentUri = Uri.fromFile(file);
